@@ -298,10 +298,15 @@ export const createIslandStore = (options: { clock: IslandClock; motion: () => I
       pendingContent.get(id)?.();
       if (!snapshot.activities.some((a) => a.id === id)) return;
       const ending = snapshot.activities.find((a) => a.id === id);
-      const expanded = snapshot.expanded?.id === id ? null : snapshot.expanded;
+      const wasExpanded = snapshot.expanded?.id === id;
+      const expanded = wasExpanded ? null : snapshot.expanded;
       // An activity handed to mid-handoff that ends calls the handoff off.
       const handingTo = ending !== undefined && ending.group !== null && snapshot.handoff === ending.group && snapshot.front[ending.group] === id;
-      if (!expanded || handingTo) clearAlert();
+      // Only clear another group's pending alert/handoff timers when this end is what they were
+      // waiting on. `expanded` is null (nothing shown expanded) during every handoff window too, so
+      // testing it instead of `wasExpanded` cancelled an unrelated group's alert whenever any other
+      // activity happened to end while that handoff was still pending.
+      if (wasExpanded || handingTo) clearAlert();
       const front = Object.fromEntries(Object.entries(snapshot.front).filter(([, forward]) => forward !== id));
       commit({ ...snapshot, activities: snapshot.activities.filter((a) => a.id !== id), expanded, front, handoff: handingTo ? null : snapshot.handoff });
     },
